@@ -70,20 +70,24 @@ with mp_hands.Hands(
 
         if current_state == STATE_COUNTDOWN:
             frames += 1
+            count_num = frames // 10
+            text_size = cv2.getTextSize(str(count_num), cv2.FONT_HERSHEY_SIMPLEX, 1, 2)[
+                0
+            ]
             cv2.putText(
                 image,
-                str(int(frames / 10)),
+                str(count_num),
                 (
-                    int(image.shape[1] / 2),
-                    int(image.shape[0] / 6),
+                    (image.shape[1] - text_size[0]) // 2,
+                    text_size[1],
                 ),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 1,
-                (255, 255, 255),
+                (255, 0, 0),
                 2,
                 cv2.LINE_4,
             )
-            if int(frames / 10) == 3:
+            if count_num == 3:
                 current_state = STATE_SCORING
 
         # Get results
@@ -112,12 +116,17 @@ with mp_hands.Hands(
                     # Display classification
                     if classification:
                         classifications.append(classification)
+                        text_size = cv2.getTextSize(
+                            classification, cv2.FONT_HERSHEY_SIMPLEX, 1, 2
+                        )[0]
                         cv2.putText(
                             image,
                             classification,
                             (
-                                int(hand_landmarks.landmark[0].x * image.shape[1]),
-                                int(hand_landmarks.landmark[0].y * image.shape[0]),
+                                int(hand_landmarks.landmark[0].x * image.shape[1])
+                                - (text_size[0] // 2),
+                                int(hand_landmarks.landmark[0].y * image.shape[0])
+                                + text_size[1],
                             ),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             1,
@@ -143,19 +152,19 @@ with mp_hands.Hands(
                 or (classifications[1] == PAPER and classifications[0] == SCISSORS)
             ):
                 game_result = "Green wins"
-
+            text_size = cv2.getTextSize(game_result, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)[0]
             cv2.putText(
                 image,
                 game_result,
                 (
-                    int(image.shape[1] / 2),
-                    int(image.shape[0] / 4),
+                    (image.shape[1] - text_size[0]) // 2,
+                    text_size[1],
                 ),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 1,
-                (255, 255, 255),
+                (0, 0, 255),
                 2,
-                cv2.LINE_4,
+                cv2.LINE_AA,
             )
 
         # Show the image
