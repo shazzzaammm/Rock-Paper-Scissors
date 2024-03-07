@@ -2,22 +2,15 @@ import cv2
 import mediapipe as mp
 import math
 
+ROCK = "Rock"
+PAPER = "Paper"
+SCISSORS = "Scissors"
+
 
 def get_distance(a, b):
     return math.sqrt(
         math.pow(a.x - b.x, 2) + math.pow(a.y - b.y, 2) + math.pow(a.z - b.z, 2)
     )
-
-
-# scissors
-# 8 12 close far above 4 16 20
-
-# rock
-# 4 8 12 16 20 close
-
-
-# paper
-# 4 8 12 16 20 far
 
 
 def is_rock(landmarks):
@@ -52,26 +45,30 @@ with mp_hands.Hands(
     model_complexity=1,
     min_detection_confidence=0.5,
     min_tracking_confidence=0.5,
+    max_num_hands=2,
 ) as hands:
     while cap.isOpened():
         success, image = cap.read()
         if not success:
             print("Ignoring empty camera frame.")
-            # If loading a video, use 'break' instead of 'continue'.
             continue
 
-        # To improve performance, optionally mark the image as not writeable to
-        # pass by reference.
+        # For speed
         image.flags.writeable = False
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        results = hands.process(image)
 
-        # Draw the hand annotations on the image.
-        image.flags.writeable = True
+        # Pre processing
+        image = cv2.flip(image, 1)
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        classification = None
+
+        # Get results
+        results = hands.process(image)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        # Initialize variables
+        classifications = []
+        # Draw stuffs
         if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
+            for i, hand_landmarks in enumerate(results.multi_hand_landmarks):
                 mp_drawing.draw_landmarks(
                     image,
                     hand_landmarks,
@@ -79,25 +76,64 @@ with mp_hands.Hands(
                     mp_drawing_styles.get_default_hand_landmarks_style(),
                     mp_drawing_styles.get_default_hand_connections_style(),
                 )
+                # Get classification
                 if is_scissors(hand_landmarks.landmark):
-                    classification = "Scissors"
+                    classification = SCISSORS
                 elif is_paper(hand_landmarks.landmark):
-                    classification = "Paper"
+                    classification = PAPER
                 elif is_rock(hand_landmarks.landmark):
-                    classification = "Rock"
-            if classification:
-                cv2.putText(
-                    image,
-                    classification,
-                    (50, 50),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    1,
-                    (255, 255, 255),
-                    2,
-                    cv2.LINE_AA,
-                )
-        image = cv2.flip(image, 1)
+                    classification = ROCK
 
+                # Display classification
+                if classification:
+                    classifications.append(classification)
+                    cv2.putText(
+                        image,
+                        classification,
+                        (
+                            int(hand_landmarks.landmark[0].x * image.shape[1]),
+                            int(hand_landmarks.landmark[0].y * image.shape[0]),
+                        ),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1,
+                        (255 * i, 255, 255 * i),
+                        2,
+                        cv2.LINE_AA,
+                    )
+
+        game_result = "2 hands please"
+
+        if len(classifications) > 1:
+            if classifications[0] == classifications[1]:
+                game_result = "Tie"
+            elif (
+                (classifications[0] == SCISSORS and classifications[1] == ROCK)
+                or (classifications[0] == ROCK and classifications[1] == PAPER)
+                or (classifications[0] == PAPER and classifications[1] == SCISSORS)
+            ):
+                game_result = "White wins"
+            elif (
+                (classifications[1] == SCISSORS and classifications[0] == ROCK)
+                or (classifications[1] == ROCK and classifications[0] == PAPER)
+                or (classifications[1] == PAPER and classifications[0] == SCISSORS)
+            ):
+                game_result = "Green wins"
+
+        cv2.putText(
+            image,
+            game_result,
+            (
+                int(image.shape[1] / 2),
+                int(image.shape[0] / 4),
+            ),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (255, 255, 255),
+            2,
+            cv2.LINE_4,
+        )
+
+        # Show the image
         cv2.imshow("MediaPipe Hands", image)
         if cv2.waitKey(5) & 0xFF == 27:
             break
